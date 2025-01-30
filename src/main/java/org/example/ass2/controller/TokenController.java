@@ -13,11 +13,6 @@ public class TokenController {
 
     private final TokenService tokenService;
 
-    @PostMapping("/token")
-    public ResponseEntity<?> token(@RequestBody TokenRequest tokenRequest) {
-        return tokenService.add(tokenRequest);
-    }
-
     @GetMapping("/check")
     public ResponseEntity<CheckResponse> check(@RequestHeader String authorizationHeader) {
         return tokenService.check(authorizationHeader);

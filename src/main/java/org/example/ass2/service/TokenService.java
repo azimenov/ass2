@@ -19,31 +19,29 @@ public class TokenService {
 
     private final DefaultTokenRepository tokenRepository;
 
-    public ResponseEntity<?> add(TokenRequest tokenRequest) {
-        if (tokenRepository.containsInCache(tokenRequest.getClientId())) {
-            return ResponseEntity.ok(tokenRepository.getTokenFromCache(tokenRequest.getClientId()));
+    public ResponseEntity<CheckResponse> check(String authorizationHeader) {
+        Token tokenFromCache = tokenRepository.getCache().get(authorizationHeader);
+
+        if (tokenFromCache != null && tokenFromCache.getExpiresAt().after(Timestamp.from(Instant.now()))) {
+            return ResponseEntity.ok(CheckResponse.builder()
+                    .clientId(tokenFromCache.getClientId())
+                    .scope(tokenFromCache.getScope())
+                    .build());
         }
 
-        String token = getToken(tokenRequest.getClientId(), tokenRequest.getScope());
+        tokenRepository.getCache().remove(authorizationHeader);
 
-        return ResponseEntity.ok(token);
-    }
+        Token tokenFromDb = tokenRepository.getTokenWithAccessToken(authorizationHeader);
 
-    public ResponseEntity<CheckResponse> check(String accessToken) {
-        if (tokenRepository.checkToken(accessToken)) {
-            Token token = tokenRepository.getTokenFromCache(accessToken);
-            if()
-        }
-    }
-
-    private String getToken(String clientId, String scope) {
-        Token token = tokenRepository.getToken(clientId, scope);
-
-        if (token.getExpiresAt().before(Timestamp.from(Instant.now()))) {
-            tokenRepository.deleteToken(token.getAccessToken());
-            token.setAccessToken(tokenRepository.getNewToken(clientId, scope));
+        if(tokenFromDb.getExpiresAt().before(Timestamp.from(Instant.now()))) {
+            return null;
         }
 
-        return token.getAccessToken();
+        tokenRepository.getCache().put(authorizationHeader, tokenFromDb);
+
+        return ResponseEntity.ok(CheckResponse.builder()
+                .clientId(tokenFromDb.getClientId())
+                .scope(tokenFromDb.getScope())
+                .build());
     }
 }
