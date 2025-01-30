@@ -31,7 +31,7 @@ public class DefaultTokenRepository {
 
     public Token getTokenWithAccessToken(String accessToken) {
         return jdbcTemplate.queryForObject(
-                "select client_id, access_scope, expiration_time from token where access_token=?",
+                "select * from token where access_token=?",
                 (rs, rowNum) -> Token.builder()
                         .clientId(rs.getString("clientId"))
                         .accessToken(rs.getString("accessToken"))
@@ -39,5 +39,39 @@ public class DefaultTokenRepository {
                         .expiresAt(rs.getTimestamp("expiresAt"))
                         .build()
                 , accessToken);
+    }
+
+    public Token getTokenWithClientIdAndScope(String clientId, String scope) {
+        return jdbcTemplate.queryForObject(
+                "select * from token where client_id=? and access_scope=?",
+                (rs, rowNum) -> Token.builder()
+                        .clientId(rs.getString("clientId"))
+                        .accessToken(rs.getString("accessToken"))
+                        .scope(rs.getString("scope"))
+                        .expiresAt(rs.getTimestamp("expiresAt"))
+                        .build()
+                , clientId, scope);
+    }
+
+    public void removeToken(String accessToken) {
+        jdbcTemplate.update(
+                "delete from token where access_token=?",
+                accessToken
+        );
+    }
+
+    public String insertAndGetToken(String clientId, String token) {
+        return jdbcTemplate.queryForObject(
+                "insert into token(client_id, access_scope) VALUES(?, ?) returning access_token",
+                String.class, clientId, token
+        );
+    }
+
+    public void refreshCache() {
+        List<Token> tokens = jdbcTemplate.query(
+                GET_TOKEN_IDS_QUERY,
+                (rs, rn) -> Mapper.readToken(rs)
+        );
+        tokenMap = tokens.stream().collect(Collectors.toMap(Token::getAccessToken, Function.identity()));
     }
 }

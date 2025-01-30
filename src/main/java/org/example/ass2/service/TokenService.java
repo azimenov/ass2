@@ -1,10 +1,7 @@
 package org.example.ass2.service;
 
 import lombok.RequiredArgsConstructor;
-import org.example.ass2.model.CheckRequest;
-import org.example.ass2.model.CheckResponse;
-import org.example.ass2.model.Token;
-import org.example.ass2.model.TokenRequest;
+import org.example.ass2.model.*;
 import org.example.ass2.repository.implementation.DefaultTokenRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -12,6 +9,7 @@ import org.springframework.stereotype.Service;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Map;
 
 @RequiredArgsConstructor
 @Service
@@ -33,7 +31,7 @@ public class TokenService {
 
         Token tokenFromDb = tokenRepository.getTokenWithAccessToken(authorizationHeader);
 
-        if(tokenFromDb.getExpiresAt().before(Timestamp.from(Instant.now()))) {
+        if (tokenFromDb.getExpiresAt().before(Timestamp.from(Instant.now()))) {
             return null;
         }
 
@@ -43,5 +41,45 @@ public class TokenService {
                 .clientId(tokenFromDb.getClientId())
                 .scope(tokenFromDb.getScope())
                 .build());
+    }
+
+    public ResponseEntity<TokenResponse> addToken(TokenRequest tokenRequest) {
+        for (Map.Entry<String, Token> entry : tokenRepository.getCache().entrySet()) {
+            if (entry.getValue().getClientId().equals(tokenRequest.getClientId())
+                    && entry.getValue().getScope().equals(tokenRequest.getScope())
+            ) {
+                return ResponseEntity.ok(
+                        TokenResponse.builder()
+                                .accessToken(entry.getValue().getAccessToken())
+                                .build()
+                );
+            }
+        }
+
+        String token = getToken(tokenRequest.getClientId(), tokenRequest.getScope());
+        if (token != null) {
+            return ResponseEntity.ok(
+                    TokenResponse.builder()
+                            .accessToken(token)
+                            .build()
+            );
+        }
+
+        token = tokenRepository.insertAndGetToken(tokenRequest.getClientId(), token);
+        tokenRepository.refreshCache();
+        return ResponseEntity.ok(
+                TokenResponse.builder()
+                        .accessToken(token)
+                        .build()
+        );
+    }
+
+    private String getToken(String clientId, String scope) {
+        Token tokenFromDb = tokenRepository.getTokenWithClientIdAndScope(clientId, scope);
+        if (tokenFromDb.getExpiresAt().before(Timestamp.from(Instant.now()))) {
+            tokenRepository.removeToken(tokenFromDb.getAccessToken());
+            return "";
+        }
+        return tokenFromDb.getAccessToken();
     }
 }
