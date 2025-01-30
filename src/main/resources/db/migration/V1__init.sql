@@ -5,4 +5,4 @@ create table if not exists public.token(
     access_token varchar default SUBSTR(UPPER(md5(random()::text)), 2, 22),
     expiration_time timestamptz default current_timestamp + interval '2hours',
     unique(client_id, access_scope)
-    );
+);
