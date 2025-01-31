@@ -16,11 +16,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class DefaultTokenRepository {
 
-    private static final String ADD_QUERY = "INSERT INTO public.token (client_id, access_token) VALUES (?, ?)";
     private static final String GET_TOKEN_IDS_QUERY =
             "SELECT * FROM token WHERE expiration_time >= current_timestamp - interval '1.5 hours';";
-    private static final String GET_TOKEN_BY_CLIENT_ID_AND_SCOPE =
-            "select * from token where client_id=? and access_scope=?";
 
     private Map<String, Token> tokenMap = new ConcurrentHashMap<>();
     private final JdbcTemplate jdbcTemplate;
