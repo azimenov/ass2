@@ -18,7 +18,9 @@ public class TokenService {
     private final DefaultTokenRepository tokenRepository;
 
     public ResponseEntity<CheckResponse> check(String authorizationHeader) {
-        Token tokenFromCache = tokenRepository.getCache().get(authorizationHeader);
+        String accessToken = authorizationHeader.substring(7);
+
+        Token tokenFromCache = tokenRepository.getCache().get(accessToken);
 
         if (tokenFromCache != null && tokenFromCache.getExpiresAt().after(Timestamp.from(Instant.now()))) {
             return ResponseEntity.ok(CheckResponse.builder()
@@ -27,15 +29,15 @@ public class TokenService {
                     .build());
         }
 
-        tokenRepository.getCache().remove(authorizationHeader);
+        tokenRepository.getCache().remove(accessToken);
 
-        Token tokenFromDb = tokenRepository.getTokenWithAccessToken(authorizationHeader);
+        Token tokenFromDb = tokenRepository.getTokenWithAccessToken(accessToken);
 
         if (tokenFromDb.getExpiresAt().before(Timestamp.from(Instant.now()))) {
             return null;
         }
 
-        tokenRepository.getCache().put(authorizationHeader, tokenFromDb);
+        tokenRepository.getCache().put(accessToken, tokenFromDb);
 
         return ResponseEntity.ok(CheckResponse.builder()
                 .clientId(tokenFromDb.getClientId())
